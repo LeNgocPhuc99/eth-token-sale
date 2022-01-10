@@ -4,7 +4,7 @@ pragma solidity >=0.4.22 <0.9.0;
 import "./DappToken.sol";
 
 contract DappTokenSale {
-    address addmin;
+    address admin;
     DappToken public tokenContract;
     uint256 public tokenPrice;
     uint256 public tokensSold;
@@ -13,7 +13,7 @@ contract DappTokenSale {
 
     constructor(DappToken _tokenContract, uint256 _tokenPrice) {
         // Assign an admin
-        addmin = msg.sender;
+        admin = msg.sender;
         // Token Contract
         tokenContract = _tokenContract;
         // Token Price
