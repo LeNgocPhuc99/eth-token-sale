@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from "react";
 import Web3 from "web3";
+import DappTokenSale from "../abis/DappTokenSale.json";
+import DappToken from "../abis/DappToken.json";
 
 import { Button, FormControl, InputGroup, ProgressBar } from "react-bootstrap";
 
 function App() {
-  const [web3, setWeb3] = useState();
-  const [tokenPrice, setPrice] = useState(0);
+  const tokensAvailable = 750000;
+  const [tokenPrice, setPrice] = useState("");
   const [balance, setBalance] = useState(0);
   const [tokensSold, setTokenSold] = useState(0);
-  const [tokensAvailable, setTokenAvailable] = useState(0);
   const [account, setAccount] = useState("");
+  const [tokenContract, setTokenContract] = useState();
+  const [saleContract, setSaleContract] = useState();
   const [amount, setAmount] = useState(0);
 
   useEffect(() => {
@@ -22,10 +25,45 @@ function App() {
       window.web3 = new Web3(window.ethereum);
       // connect to metamask
       let web3 = window.web3;
-      setWeb3(web3);
 
       const accounts = await web3.eth.getAccounts();
       setAccount(accounts[0]);
+
+      const networkId = await web3.eth.net.getId();
+      const saleContractData = DappTokenSale.networks[networkId];
+      const tokenContractData = DappToken.networks[networkId];
+      // load token contract
+      if (tokenContractData) {
+        let web3 = window.web3;
+        const tokenContract = new web3.eth.Contract(
+          DappToken.abi,
+          tokenContractData.address
+        );
+        setTokenContract(tokenContract);
+        const balance = await tokenContract.methods
+          .balanceOf(accounts[0])
+          .call();
+        setBalance(balance);
+      } else {
+        window.alert("Dapp Token contract is not deployed on this network");
+      }
+      // load token sale contract
+      if (saleContractData) {
+        let web3 = window.web3;
+        const saleContract = new web3.eth.Contract(
+          DappTokenSale.abi,
+          saleContractData.address
+        );
+        setSaleContract(saleContract);
+        const price = await saleContract.methods.tokenPrice().call();
+        setPrice(price);
+        const tokenSole = await saleContract.methods.tokensSold().call();
+        setTokenSold(tokenSole);
+      } else {
+        window.alert(
+          "Dapp Token Sale contract is not deployed on this network"
+        );
+      }
     } else if (!window.web3) {
       window.alert("Metamask is not detected");
     }
@@ -37,6 +75,7 @@ function App() {
 
   const handleOnClick = () => {
     console.log(amount);
+    console.log(saleContract);
   };
 
   return (
@@ -47,7 +86,10 @@ function App() {
         <br />
       </div>
       <p>
-        DAPP token price is <span className="token-price">{tokenPrice}</span>{" "}
+        DAPP token price is{" "}
+        <span className="token-price">
+          {Web3.utils.fromWei(tokenPrice, "ether")}
+        </span>{" "}
         Ether.
         <br />
         You currently have <span className="dapp-balance">{balance}</span> DAPP.
@@ -57,7 +99,7 @@ function App() {
         <Button onClick={handleOnClick}>Buy Tokens</Button>
       </InputGroup>
       <br />
-      <ProgressBar min={0} max={100} now={10} />
+      <ProgressBar min={0} max={100} now={tokensSold / tokensAvailable} />
       <br />
       <p>
         <span className="tokens-sold">{tokensSold}</span> /{" "}
