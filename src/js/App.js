@@ -3,7 +3,15 @@ import Web3 from "web3";
 import DappTokenSale from "../abis/DappTokenSale.json";
 import DappToken from "../abis/DappToken.json";
 
-import { Button, FormControl, InputGroup, ProgressBar } from "react-bootstrap";
+import {
+  Button,
+  FormControl,
+  InputGroup,
+  ProgressBar,
+  Navbar,
+  Nav,
+  Container,
+} from "react-bootstrap";
 
 function App() {
   const tokensAvailable = 750000;
@@ -13,7 +21,7 @@ function App() {
   const [account, setAccount] = useState("");
   const [tokenContract, setTokenContract] = useState();
   const [saleContract, setSaleContract] = useState();
-  const [amount, setAmount] = useState(0);
+  const [amount, setAmount] = useState();
 
   useEffect(() => {
     loadBlockchainData();
@@ -55,10 +63,11 @@ function App() {
           saleContractData.address
         );
         setSaleContract(saleContract);
-        const price = await saleContract.methods.tokenPrice().call();
-        setPrice(price);
-        const tokenSole = await saleContract.methods.tokensSold().call();
-        setTokenSold(tokenSole);
+        let price = await saleContract.methods.tokenPrice().call();
+        price = Web3.utils.fromWei(price.toString(), "ether");
+        setPrice(price.toString());
+        const tokensSold = await saleContract.methods.tokensSold().call();
+        setTokenSold(tokensSold);
       } else {
         window.alert(
           "Dapp Token Sale contract is not deployed on this network"
@@ -69,34 +78,57 @@ function App() {
     }
   };
 
+  const reloadData = async () => {
+    const balance = await tokenContract.methods.balanceOf(account).call();
+    setBalance(balance);
+    const tokensSold = await saleContract.methods.tokensSold().call();
+    setTokenSold(tokensSold);
+  };
+
+  const buyTokens = () => {
+    saleContract.methods
+      .buyTokens(amount)
+      .send({
+        value: window.web3.utils.toWei(String(amount * tokenPrice), "ether"),
+        from: account,
+      })
+      .on("receipt", function () {
+        reloadData();
+      });
+  };
+
   const handleFormChange = (e) => {
     setAmount(e.target.value);
   };
 
-  const handleOnClick = () => {
-    console.log(amount);
-    console.log(saleContract);
-  };
-
   return (
-    <div className="container" style={{ width: 650 }}>
+    <div className="container">
+      <Navbar bg="dark" variant="dark">
+        <Nav className="me-auto">
+          <Nav.Link href="#">
+            <span>Your're account: {account}</span>
+          </Nav.Link>
+        </Nav>
+      </Navbar>
       <div className="col-lg-12">
         <h1 className="text-center">DAPP TOKEN ICO SALE</h1>
         <hr />
         <br />
       </div>
       <p>
-        DAPP token price is{" "}
-        <span className="token-price">
-          {Web3.utils.fromWei(tokenPrice, "ether")}
-        </span>{" "}
+        DAPP token price is <span className="token-price">{tokenPrice}</span>{" "}
         Ether.
         <br />
         You currently have <span className="dapp-balance">{balance}</span> DAPP.
       </p>
       <InputGroup>
-        <FormControl type="text" required onChange={handleFormChange} />
-        <Button onClick={handleOnClick}>Buy Tokens</Button>
+        <FormControl
+          type="text"
+          required
+          onChange={handleFormChange}
+          placeholder="Number of tokens"
+        />
+        <Button onClick={buyTokens}>Buy Tokens</Button>
       </InputGroup>
       <br />
       <ProgressBar min={0} max={100} now={tokensSold / tokensAvailable} />
@@ -105,7 +137,6 @@ function App() {
         <span className="tokens-sold">{tokensSold}</span> /{" "}
         <span className="tokens-available">{tokensAvailable}</span> tokens sold
       </p>
-      <p>Your's account: {account}</p>
     </div>
   );
 }
